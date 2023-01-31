@@ -3,18 +3,41 @@ version: "3"
 
 volumes:
   ckan_data:
+  pg_data:
   solr_data:
 
 services:
+  db:
+    container_name: db
+    build:
+      context: .
+      dockerfile: postgresql/Dockerfile
+      args:
+        - DS_RO_PASS=${DATASTORE_READONLY_PASSWORD}
+        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    networks:
+      - backend
+    ports:
+      - "127.0.0.1:5032:5432"
+    environment:
+      - DS_RO_PASS=${DATASTORE_READONLY_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGDATA=/var/lib/postgresql/data/db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "ckan"]
+
   ckan:
     container_name: ckan
     build:
       context: .
+    restart: on-failure
     networks:
       - frontend
       - backend
     ports:
-      - "0.0.0.0:${CKAN_PORT}:5000"
+      - "127.0.0.1:${CKAN_PORT}:5000"
     env_file:
       - ./.ckan-env
     environment:
@@ -131,7 +154,7 @@ services:
       - frontend
       - backend
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - DATAPUSHER_MAX_CONTENT_LENGTH=${DATAPUSHER_MAX_CONTENT_LENGTH}
       - DATAPUSHER_CHUNK_SIZE=${DATAPUSHER_CHUNK_SIZE}
@@ -140,7 +163,7 @@ services:
       - DATAPUSHER_SSL_VERIFY=${DATAPUSHER_SSL_VERIFY}
       - DATAPUSHER_REWRITE_RESOURCES=${DATAPUSHER_REWRITE_RESOURCES}
       - DATAPUSHER_REWRITE_URL=${DATAPUSHER_REWRITE_URL}
-      
+
   solr:
     container_name: solr
     build:
